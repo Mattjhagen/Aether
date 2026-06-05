@@ -1,19 +1,24 @@
 import SwiftUI
 import SwiftData
+import AVFoundation
 
-public struct ReadingView: View {
+public struct ReaderView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     
     var document: Document
     
-    @StateObject private var speechManager = SpeechManager()
+    @StateObject private var syncService = ReaderSyncService()
     
-    // Display controls / focus state
+    // Auto-hide and Focus mode state
+    @State private var controlsVisible: Bool = true
     @State private var isFocusMode: Bool = false
+    @State private var autoHideTimer: Timer? = nil
+    
+    // Settings overlay
     @State private var showSettings: Bool = false
     
-    // User reading preferences (backed by UserDefaults)
+    // User reading preferences
     @State private var fontSize: CGFloat = 22
     @State private var lineSpacing: CGFloat = 8
     @State private var marginSize: CGFloat = 24
@@ -25,11 +30,11 @@ public struct ReadingView: View {
     
     public var body: some View {
         ZStack {
-            // Dark Mode Background
+            // Metro Black Background
             Color.metroBlack
                 .ignoresSafeArea()
             
-            // Core Text View
+            // Core Text Scroll View
             GeometryReader { geometry in
                 ScrollViewReader { proxy in
                     ScrollView(showsIndicators: false) {
@@ -37,9 +42,9 @@ public struct ReadingView: View {
                             
                             // Visual Margin Spacer at the Top
                             Spacer()
-                                .frame(height: isFocusMode ? 60 : 100)
+                                .frame(height: isFocusMode ? 60 : 120)
                             
-                            // Book Header (only visible when not in Focus Mode)
+                            // Header (Hidden in Focus Mode)
                             if !isFocusMode {
                                 VStack(alignment: .leading, spacing: 8) {
                                     Text(document.title.uppercased())
@@ -57,25 +62,27 @@ public struct ReadingView: View {
                                         .padding(.vertical, 16)
                                 }
                                 .padding(.horizontal, marginSize)
+                                .opacity(controlsVisible ? 1.0 : 0.0)
+                                .animation(.metroTransition, value: controlsVisible)
                             }
                             
-                            // Render book sentences
-                            if speechManager.sentences.isEmpty {
+                            // Sentences display
+                            if syncService.sentences.isEmpty {
                                 Text("This document contains no readable text.")
                                     .font(selectedFont.font(size: fontSize))
                                     .foregroundColor(.metroLightGray)
                                     .padding(.horizontal, marginSize)
                             } else {
-                                ForEach(0..<speechManager.sentences.count, id: \.self) { index in
-                                    let sentenceText = speechManager.sentences[index]
-                                    let isActive = index == speechManager.currentSentenceIndex
+                                ForEach(0..<syncService.sentences.count, id: \.self) { index in
+                                    let sentenceText = syncService.sentences[index]
+                                    let isActive = index == syncService.currentSentenceIndex
                                     
                                     SentenceItemView(
                                         text: sentenceText,
                                         index: index,
                                         isActive: isActive,
-                                        isPlaying: speechManager.isPlaying,
-                                        currentWordRange: speechManager.currentWordRange,
+                                        isPlaying: syncService.isPlaying,
+                                        currentWordRange: syncService.currentWordRange,
                                         font: selectedFont,
                                         fontSize: fontSize,
                                         lineSpacing: lineSpacing
@@ -83,84 +90,90 @@ public struct ReadingView: View {
                                     .id(index)
                                     .padding(.horizontal, marginSize)
                                     .onTapGesture {
-                                        // Tap on a sentence jumps the speech manager to that sentence
-                                        speechManager.jumpToSentence(index: index)
+                                        syncService.jumpToSentence(index: index)
+                                        resetAutoHideTimer()
                                     }
                                 }
                             }
                             
                             // Visual Spacer at the Bottom
                             Spacer()
-                                .frame(height: isFocusMode ? 120 : 200)
+                                .frame(height: isFocusMode ? 120 : 220)
                         }
                     }
                     .coordinateSpace(name: "scroll")
-                    .gesture(
-                        // Tap Gestures on ScrollView:
-                        // Double Tap -> Toggle Focus Mode
-                        // Single Tap -> If Focus Mode, reveal controls
-                        TapGesture(count: 2)
-                            .onEnded {
-                                withAnimation(.metroFocus) {
-                                    isFocusMode.toggle()
+                    .onTapGesture(count: 2) {
+                        withAnimation(.metroFocus) {
+                            isFocusMode.toggle()
+                            if isFocusMode {
+                                controlsVisible = false
+                            } else {
+                                resetAutoHideTimer()
+                            }
+                        }
+                    }
+                    .onTapGesture(count: 1) {
+                        withAnimation(.metroFocus) {
+                            if isFocusMode {
+                                isFocusMode = false
+                                resetAutoHideTimer()
+                            } else {
+                                if controlsVisible {
+                                    controlsVisible = false
+                                } else {
+                                    resetAutoHideTimer()
                                 }
                             }
-                            .simultaneously(
-                                with: TapGesture(count: 1)
-                                    .onEnded {
-                                        if isFocusMode {
-                                            withAnimation(.metroFocus) {
-                                                isFocusMode = false
-                                            }
-                                        }
-                                    }
-                            )
-                    )
-                    // Listen to progress updates to keep spoken sentence centered
-                    .onChange(of: speechManager.currentSentenceIndex) { _, newIndex in
-                        if speechManager.isPlaying {
+                        }
+                    }
+                    // Auto-scroll centering
+                    .onChange(of: syncService.currentSentenceIndex) { _, newIndex in
+                        if syncService.isPlaying {
                             withAnimation(.metroFocus) {
                                 proxy.scrollTo(newIndex, anchor: .center)
                             }
                         }
                     }
                     .onAppear {
-                        // Load saved preferences
                         loadPreferences()
                         
-                        // Mark book as active read date
+                        // Register read timestamp
                         document.dateLastRead = Date()
                         try? modelContext.save()
                         
-                        // Load document content in SpeechManager
+                        // Load saved speed, pitch, voice profile
+                        loadVoiceProfile()
+                        
+                        // Load document content in Sync Service
                         let startSentence = document.readingProgress?.currentSentenceIndex ?? 0
-                        speechManager.loadDocument(
+                        syncService.loadDocument(
                             id: document.id,
                             text: document.rawText,
                             startIndex: startSentence
                         ) { sentenceIndex in
-                            // Update SwiftData progress as user reads
                             if let progress = document.readingProgress {
                                 progress.currentSentenceIndex = sentenceIndex
                                 try? modelContext.save()
                             }
                         }
                         
-                        // Scroll to last read sentence on load
+                        // Scroll to position
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                             proxy.scrollTo(startSentence, anchor: .center)
                         }
+                        
+                        resetAutoHideTimer()
                     }
                 }
             }
             .ignoresSafeArea()
             
             // Custom Navigation Header (Hidden in Focus Mode)
-            if !isFocusMode {
+            if !isFocusMode && controlsVisible {
                 VStack {
                     HStack {
                         Button(action: {
-                            speechManager.stop()
+                            syncService.stop()
                             dismiss()
                         }) {
                             Image(systemName: "arrow.left")
@@ -176,6 +189,7 @@ public struct ReadingView: View {
                         Button(action: {
                             document.isFavorite.toggle()
                             try? modelContext.save()
+                            resetAutoHideTimer()
                         }) {
                             Image(systemName: document.isFavorite ? "star.fill" : "star")
                                 .font(.system(size: 18))
@@ -190,26 +204,27 @@ public struct ReadingView: View {
                     Spacer()
                 }
                 .ignoresSafeArea()
+                .transition(.opacity)
             }
             
-            // Playback controls drawer (Bottom Panel)
-            if !isFocusMode {
+            // Playback controls drawer (Bottom Panel, Hidden in Focus Mode)
+            if !isFocusMode && controlsVisible {
                 VStack {
                     Spacer()
                     
                     VStack(spacing: 20) {
-                        
-                        // Voice & Speed HUD
+                        // Voice & Speed indicators
                         HStack {
-                            // Voice Selector Menu
                             Menu {
-                                ForEach(speechManager.availableVoices, id: \.identifier) { voice in
+                                ForEach(VoiceService.shared.availableVoices, id: \.identifier) { voice in
                                     Button(action: {
-                                        speechManager.selectedVoice = voice
+                                        syncService.selectedVoice = voice
+                                        saveVoiceProfile()
+                                        resetAutoHideTimer()
                                     }) {
                                         HStack {
                                             Text("\(voice.name) (\(voice.language))")
-                                            if speechManager.selectedVoice?.identifier == voice.identifier {
+                                            if syncService.selectedVoice?.identifier == voice.identifier {
                                                 Image(systemName: "checkmark")
                                             }
                                         }
@@ -218,7 +233,7 @@ public struct ReadingView: View {
                             } label: {
                                 HStack(spacing: 6) {
                                     Image(systemName: "person.wave.2")
-                                    Text(speechManager.selectedVoice?.name ?? "Siri Voice")
+                                    Text(syncService.selectedVoice?.name ?? "Voice")
                                         .lineLimit(1)
                                 }
                                 .font(.system(size: 13, weight: .bold))
@@ -231,15 +246,16 @@ public struct ReadingView: View {
                             
                             Spacer()
                             
-                            // Speed Controls Menu
                             Menu {
-                                ForEach([0.75, 1.0, 1.25, 1.5, 1.75, 2.0], id: \.self) { speed in
+                                ForEach([0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0], id: \.self) { speed in
                                     Button(action: {
-                                        speechManager.speedMultiplier = speed
+                                        syncService.speedMultiplier = speed
+                                        saveVoiceProfile()
+                                        resetAutoHideTimer()
                                     }) {
                                         HStack {
                                             Text(String(format: "%.2fx", speed))
-                                            if speechManager.speedMultiplier == speed {
+                                            if syncService.speedMultiplier == speed {
                                                 Image(systemName: "checkmark")
                                             }
                                         }
@@ -248,7 +264,7 @@ public struct ReadingView: View {
                             } label: {
                                 HStack(spacing: 6) {
                                     Image(systemName: "speedometer")
-                                    Text(String(format: "%.2fx", speechManager.speedMultiplier))
+                                    Text(String(format: "%.2fx", syncService.speedMultiplier))
                                 }
                                 .font(.system(size: 13, weight: .bold))
                                 .foregroundColor(.metroSilver)
@@ -263,7 +279,8 @@ public struct ReadingView: View {
                         // Media Buttons
                         HStack(spacing: 40) {
                             Button(action: {
-                                speechManager.skipBackward()
+                                syncService.skipBackward()
+                                resetAutoHideTimer()
                             }) {
                                 Image(systemName: "gobackward.10")
                                     .font(.system(size: 22, weight: .light))
@@ -272,13 +289,14 @@ public struct ReadingView: View {
                             .buttonStyle(PlainButtonStyle())
                             
                             Button(action: {
-                                if speechManager.isPlaying {
-                                    speechManager.pause()
+                                if syncService.isPlaying {
+                                    syncService.pause()
                                 } else {
-                                    speechManager.play()
+                                    syncService.play()
                                 }
+                                resetAutoHideTimer()
                             }) {
-                                Image(systemName: speechManager.isPlaying ? "pause.fill" : "play.fill")
+                                Image(systemName: syncService.isPlaying ? "pause.fill" : "play.fill")
                                     .font(.system(size: 32))
                                     .foregroundColor(.metroWhite)
                                     .frame(width: 72, height: 72)
@@ -288,7 +306,8 @@ public struct ReadingView: View {
                             .buttonStyle(MetroTileButtonStyle())
                             
                             Button(action: {
-                                speechManager.skipForward()
+                                syncService.skipForward()
+                                resetAutoHideTimer()
                             }) {
                                 Image(systemName: "goforward.10")
                                     .font(.system(size: 22, weight: .light))
@@ -304,6 +323,7 @@ public struct ReadingView: View {
                                 withAnimation(.metroTransition) {
                                     showSettings.toggle()
                                 }
+                                resetAutoHideTimer()
                             }) {
                                 HStack(spacing: 6) {
                                     Image(systemName: "textformat.size")
@@ -324,18 +344,19 @@ public struct ReadingView: View {
                     .padding(.bottom, 34)
                 }
                 .ignoresSafeArea()
+                .transition(.move(edge: .bottom))
             }
             
-            // Custom Settings Overlay Sheet (Display Options)
+            // Custom Settings Overlay Sheet
             if showSettings {
                 ZStack {
-                    // Dim Background
                     Color.black.opacity(0.6)
                         .ignoresSafeArea()
                         .onTapGesture {
                             withAnimation(.metroTransition) {
                                 showSettings = false
                             }
+                            resetAutoHideTimer()
                         }
                     
                     VStack {
@@ -352,6 +373,7 @@ public struct ReadingView: View {
                                     withAnimation(.metroTransition) {
                                         showSettings = false
                                     }
+                                    resetAutoHideTimer()
                                 }) {
                                     Image(systemName: "xmark")
                                         .font(.footnote)
@@ -374,6 +396,7 @@ public struct ReadingView: View {
                                         Button(action: {
                                             selectedFont = rFont
                                             savePreferences()
+                                            resetAutoHideTimer()
                                         }) {
                                             Text(rFont.rawValue)
                                                 .font(.system(size: 13, weight: .bold))
@@ -403,6 +426,7 @@ public struct ReadingView: View {
                                 
                                 Slider(value: $fontSize, in: 16...36, step: 2) { _ in
                                     savePreferences()
+                                    resetAutoHideTimer()
                                 }
                                 .accentColor(.metroWhite)
                             }
@@ -422,6 +446,7 @@ public struct ReadingView: View {
                                 
                                 Slider(value: $lineSpacing, in: 4...16, step: 2) { _ in
                                     savePreferences()
+                                    resetAutoHideTimer()
                                 }
                                 .accentColor(.metroWhite)
                             }
@@ -438,6 +463,7 @@ public struct ReadingView: View {
                                         Button(action: {
                                             marginSize = CGFloat(margin)
                                             savePreferences()
+                                            resetAutoHideTimer()
                                         }) {
                                             Text("\(margin)px")
                                                 .font(.system(size: 13, weight: .bold))
@@ -464,32 +490,93 @@ public struct ReadingView: View {
         }
         .navigationBarHidden(true)
         .onDisappear {
-            speechManager.stop()
+            autoHideTimer?.invalidate()
+            syncService.stop()
         }
     }
     
-    // MARK: - Save/Load Preferences
+    // Auto-hide controls timer management
+    private func resetAutoHideTimer() {
+        autoHideTimer?.invalidate()
+        if isFocusMode {
+            controlsVisible = false
+            return
+        }
+        controlsVisible = true
+        autoHideTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
+            withAnimation(.metroFocus) {
+                // Only auto-hide if playing
+                if syncService.isPlaying {
+                    controlsVisible = false
+                }
+            }
+        }
+    }
+    
+    // Save/Load preferences
     private func savePreferences() {
-        UserDefaults.standard.set(fontSize, forKey: "etp_font_size")
-        UserDefaults.standard.set(lineSpacing, forKey: "etp_line_spacing")
-        UserDefaults.standard.set(marginSize, forKey: "etp_margin_size")
-        UserDefaults.standard.set(selectedFont.rawValue, forKey: "etp_selected_font")
+        UserDefaults.standard.set(fontSize, forKey: "aether_font_size")
+        UserDefaults.standard.set(lineSpacing, forKey: "aether_line_spacing")
+        UserDefaults.standard.set(marginSize, forKey: "aether_margin_size")
+        UserDefaults.standard.set(selectedFont.rawValue, forKey: "aether_selected_font")
     }
     
     private func loadPreferences() {
-        if let size = UserDefaults.standard.value(forKey: "etp_font_size") as? CGFloat {
+        if let size = UserDefaults.standard.value(forKey: "aether_font_size") as? CGFloat {
             fontSize = size
+        } else if let oldSize = UserDefaults.standard.value(forKey: "etp_font_size") as? CGFloat {
+            fontSize = oldSize
         }
-        if let spacing = UserDefaults.standard.value(forKey: "etp_line_spacing") as? CGFloat {
+        
+        if let spacing = UserDefaults.standard.value(forKey: "aether_line_spacing") as? CGFloat {
             lineSpacing = spacing
+        } else if let oldSpacing = UserDefaults.standard.value(forKey: "etp_line_spacing") as? CGFloat {
+            lineSpacing = oldSpacing
         }
-        if let margin = UserDefaults.standard.value(forKey: "etp_margin_size") as? CGFloat {
+        
+        if let margin = UserDefaults.standard.value(forKey: "aether_margin_size") as? CGFloat {
             marginSize = margin
+        } else if let oldMargin = UserDefaults.standard.value(forKey: "etp_margin_size") as? CGFloat {
+            marginSize = oldMargin
         }
-        if let rawFont = UserDefaults.standard.string(forKey: "etp_selected_font"),
+        
+        if let rawFont = UserDefaults.standard.string(forKey: "aether_selected_font"),
            let rFont = ReadingFont(rawValue: rawFont) {
             selectedFont = rFont
+        } else if let oldRawFont = UserDefaults.standard.string(forKey: "etp_selected_font"),
+                  let oldFont = ReadingFont(rawValue: oldRawFont) {
+            selectedFont = oldFont
         }
+    }
+    
+    // Load Voice Settings Profile
+    private func loadVoiceProfile() {
+        let descriptor = FetchDescriptor<VoiceProfile>()
+        if let profiles = try? modelContext.fetch(descriptor), let profile = profiles.first {
+            syncService.speedMultiplier = profile.speedMultiplier
+            syncService.pitchMultiplier = profile.pitchMultiplier
+            if !profile.voiceIdentifier.isEmpty {
+                syncService.selectedVoice = AVSpeechSynthesisVoice(identifier: profile.voiceIdentifier)
+            }
+        }
+    }
+    
+    private func saveVoiceProfile() {
+        let descriptor = FetchDescriptor<VoiceProfile>()
+        let profiles = (try? modelContext.fetch(descriptor)) ?? []
+        let profile = profiles.first ?? VoiceProfile()
+        
+        profile.speedMultiplier = syncService.speedMultiplier
+        profile.pitchMultiplier = syncService.pitchMultiplier
+        if let voice = syncService.selectedVoice {
+            profile.voiceIdentifier = voice.identifier
+            profile.language = voice.language
+        }
+        
+        if profiles.isEmpty {
+            modelContext.insert(profile)
+        }
+        try? modelContext.save()
     }
 }
 
@@ -525,15 +612,12 @@ struct SentenceItemView: View {
                     .opacity(isPlaying ? 0.45 : 1.0)
             }
         }
-        // Smooth transition when entering/exiting reading focus
         .animation(.metroFocus, value: isPlaying)
         .animation(.metroFocus, value: isActive)
     }
     
     private func highlightActiveSentence(text: String, range: NSRange?) -> AttributedString {
         var attrStr = AttributedString(text)
-        
-        // Base active sentence color is light silver
         attrStr.foregroundColor = .metroSilver
         
         guard let range = range,
@@ -542,7 +626,6 @@ struct SentenceItemView: View {
             return attrStr
         }
         
-        // Highlight active word in pure white and bold
         attrStr[attrRange].foregroundColor = .metroWordHighlight
         attrStr[attrRange].font = font.font(size: fontSize).bold()
         

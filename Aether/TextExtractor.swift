@@ -1,5 +1,6 @@
 import Foundation
 import PDFKit
+import UIKit
 
 public enum TextExtractorError: Error {
     case fileNotFound
@@ -28,6 +29,8 @@ public class TextExtractor {
             return try extractDocx(url: url)
         case "epub":
             return try extractEpub(url: url)
+        case "rtf":
+            return try extractRtf(url: url)
         default:
             throw TextExtractorError.parsingFailed("Unsupported file extension: \(extensionLower)")
         }
@@ -39,7 +42,6 @@ public class TextExtractor {
             let title = url.deletingPathExtension().lastPathComponent
             return ExtractedBook(title: title, author: "Unknown Author", content: content)
         } catch {
-            // Try with macOS roman / ascii or other encoding as fallback
             do {
                 let content = try String(contentsOf: url, encoding: .ascii)
                 let title = url.deletingPathExtension().lastPathComponent
@@ -52,7 +54,6 @@ public class TextExtractor {
     
     private static func extractMarkdown(url: URL) throws -> ExtractedBook {
         let book = try extractTxt(url: url)
-        // Parse metadata block if it exists (e.g. YAML front matter)
         var title = book.title
         var author = "Unknown Author"
         var content = book.content
@@ -94,7 +95,6 @@ public class TextExtractor {
         var title = url.deletingPathExtension().lastPathComponent
         var author = "Unknown Author"
         
-        // Extract metadata if available
         if let attributes = pdfDocument.documentAttributes {
             if let pdfTitle = attributes[PDFDocumentAttribute.titleAttribute] as? String, !pdfTitle.isEmpty {
                 title = pdfTitle
@@ -118,6 +118,21 @@ public class TextExtractor {
         )
     }
     
+    private static func extractRtf(url: URL) throws -> ExtractedBook {
+        let title = url.deletingPathExtension().lastPathComponent
+        guard let data = try? Data(contentsOf: url) else {
+            throw TextExtractorError.parsingFailed("Failed to read RTF file data")
+        }
+        
+        let options = [NSAttributedString.DocumentReadingOptionKey.documentType: NSAttributedString.DocumentType.rtf]
+        do {
+            let attributedString = try NSAttributedString(data: data, options: options, documentAttributes: nil)
+            return ExtractedBook(title: title, author: "Unknown Author", content: attributedString.string)
+        } catch {
+            throw TextExtractorError.parsingFailed("Failed to parse RTF content: \(error.localizedDescription)")
+        }
+    }
+    
     private static func extractDocx(url: URL) throws -> ExtractedBook {
         guard let zip = ZipArchive(url: url) else {
             throw TextExtractorError.parsingFailed("Failed to open DOCX zip container")
@@ -139,7 +154,6 @@ public class TextExtractor {
             throw TextExtractorError.parsingFailed("Failed to open EPUB zip container")
         }
         
-        // 1. Parse container.xml to find OPF path
         guard let containerData = zip.extract(fileName: "META-INF/container.xml") else {
             throw TextExtractorError.parsingFailed("Invalid EPUB: META-INF/container.xml not found")
         }
@@ -149,18 +163,14 @@ public class TextExtractor {
             throw TextExtractorError.parsingFailed("Could not locate root OPF file in container.xml")
         }
         
-        // 2. Parse OPF file
         guard let opfData = zip.extract(fileName: opfPath) else {
             throw TextExtractorError.parsingFailed("OPF file not found at path: \(opfPath)")
         }
         
         let opfXml = String(data: opfData, encoding: .utf8) ?? ""
-        
-        // Extract Title and Author from OPF
         let title = scanTagContent(in: opfXml, tagName: "dc:title") ?? url.deletingPathExtension().lastPathComponent
         let author = scanTagContent(in: opfXml, tagName: "dc:creator") ?? "Unknown Author"
         
-        // Extract Manifest: Map of ID to href
         var manifest: [String: String] = [:]
         var index = opfXml.startIndex
         while let itemRange = opfXml.range(of: "<item ", options: [], range: index..<opfXml.endIndex) {
@@ -173,7 +183,6 @@ public class TextExtractor {
             index = closeBracket.upperBound
         }
         
-        // Extract Spine: Order of item references
         var spineIds: [String] = []
         index = opfXml.startIndex
         while let itemRefRange = opfXml.range(of: "<itemref ", options: [], range: index..<opfXml.endIndex) {
@@ -185,7 +194,6 @@ public class TextExtractor {
             index = closeBracket.upperBound
         }
         
-        // OPF Base Directory (e.g. "EPUB/" or "")
         let opfDir: String
         if let lastSlash = opfPath.firstIndex(of: "/") {
             opfDir = String(opfPath[..<opfPath.index(after: lastSlash)])
@@ -193,15 +201,11 @@ public class TextExtractor {
             opfDir = ""
         }
         
-        // 3. Extract and Clean HTML Chapters in Spine order
         var fullText = ""
         for spineId in spineIds {
             guard let relHref = manifest[spineId] else { continue }
-            // Remove URL queries/anchors if any
             let cleanRelHref = relHref.components(separatedBy: "#")[0].components(separatedBy: "?")[0]
-            // Decode URL percentage escape codes
             let decodedRelHref = cleanRelHref.removingPercentEncoding ?? cleanRelHref
-            
             let fullHref = opfDir + decodedRelHref
             
             if let chapterData = zip.extract(fileName: fullHref) {
@@ -210,15 +214,10 @@ public class TextExtractor {
                 if !chapterText.isEmpty {
                     fullText += chapterText + "\n\n"
                 }
-            } else {
-                // Try case-insensitive fallback or relative offsets if not found
-                print("Chapter not found in ZIP: \(fullHref)")
             }
         }
         
         if fullText.isEmpty {
-            // Fallback: search for any HTML files in the zip and concatenate them
-            print("Spine yielded no text, fallback to parsing all xhtml/html files")
             for fileName in zip.fileNames.sorted() {
                 let lower = fileName.lowercased()
                 if lower.hasSuffix(".xhtml") || lower.hasSuffix(".html") {
@@ -237,10 +236,7 @@ public class TextExtractor {
         )
     }
     
-    // MARK: - HTML/XML Helpers
-    
     private static func cleanHTML(_ html: String) -> String {
-        // 1. Extract body content
         var bodyContent = html
         if let bodyStart = html.range(of: "<body", options: .caseInsensitive),
            let bodyStartClose = html.range(of: ">", range: bodyStart.upperBound..<html.endIndex),
@@ -249,29 +245,20 @@ public class TextExtractor {
         }
         
         var text = bodyContent
-        
-        // Replace headings with Markdown headings
         text = replaceTag(text, tag: "h1", replacementStart: "\n# ", replacementEnd: "\n")
         text = replaceTag(text, tag: "h2", replacementStart: "\n## ", replacementEnd: "\n")
         text = replaceTag(text, tag: "h3", replacementStart: "\n### ", replacementEnd: "\n")
         text = replaceTag(text, tag: "h4", replacementStart: "\n#### ", replacementEnd: "\n")
-        
-        // Replace paragraph/block tags with double newlines
         text = replaceTag(text, tag: "p", replacementStart: "", replacementEnd: "\n\n")
         text = replaceTag(text, tag: "div", replacementStart: "", replacementEnd: "\n")
-        
-        // Replace break tags
         text = text.replacingOccurrences(of: "<br/>", with: "\n", options: .caseInsensitive)
         text = text.replacingOccurrences(of: "<br />", with: "\n", options: .caseInsensitive)
         text = text.replacingOccurrences(of: "<br>", with: "\n", options: .caseInsensitive)
-        
-        // Replace inline formatting with Markdown
         text = replaceTag(text, tag: "em", replacementStart: "*", replacementEnd: "*")
         text = replaceTag(text, tag: "i", replacementStart: "*", replacementEnd: "*")
         text = replaceTag(text, tag: "strong", replacementStart: "**", replacementEnd: "**")
         text = replaceTag(text, tag: "b", replacementStart: "**", replacementEnd: "**")
         
-        // Strip remaining tags
         var cleanText = ""
         var inTag = false
         for char in text {
@@ -284,10 +271,7 @@ public class TextExtractor {
             }
         }
         
-        // Decode XML/HTML entities
         cleanText = decodeHTMLEntities(cleanText)
-        
-        // Format paragraphs and trim spaces
         var formattedLines: [String] = []
         let lines = cleanText.components(separatedBy: .newlines)
         for line in lines {
@@ -317,9 +301,7 @@ public class TextExtractor {
             
             let tagContent = result[bracketRange.upperBound..<closeRange.lowerBound]
             let replaced = replacementStart + tagContent + replacementEnd
-            
             result.replaceSubrange(openRange.lowerBound..<closeRange.upperBound, with: replaced)
-            
             index = result.index(openRange.lowerBound, offsetBy: replaced.count, limitedBy: result.endIndex) ?? result.endIndex
         }
         return result
@@ -347,7 +329,6 @@ public class TextExtractor {
             result = result.replacingOccurrences(of: entity, with: char)
         }
         
-        // Simple regex-less hex decode: &#x...;
         var index = result.startIndex
         while let ampRange = result.range(of: "&#x", range: index..<result.endIndex) {
             if let semiRange = result.range(of: ";", range: ampRange.upperBound..<result.endIndex) {
@@ -361,7 +342,6 @@ public class TextExtractor {
             index = ampRange.upperBound
         }
         
-        // Decimal decode: &#...;
         index = result.startIndex
         while let ampRange = result.range(of: "&#", range: index..<result.endIndex) {
             if let semiRange = result.range(of: ";", range: ampRange.upperBound..<result.endIndex) {
@@ -380,7 +360,6 @@ public class TextExtractor {
     
     private static func parseDocxXML(_ xmlString: String) -> String {
         var result = ""
-        
         var pIndex = xmlString.startIndex
         while let pStartRange = xmlString.range(of: "<w:p", range: pIndex..<xmlString.endIndex) {
             guard let pCloseBracket = xmlString.range(of: ">", range: pStartRange.upperBound..<xmlString.endIndex) else { break }
@@ -391,24 +370,19 @@ public class TextExtractor {
             if !pText.isEmpty {
                 result += pText + "\n\n"
             }
-            
             pIndex = pEndRange.upperBound
         }
-        
         return decodeHTMLEntities(result).trimmingCharacters(in: .whitespacesAndNewlines)
     }
     
     private static func parseDocxParagraph(_ pXml: String) -> String {
         var paragraphText = ""
-        
         var rIndex = pXml.startIndex
         while let rStartRange = pXml.range(of: "<w:r", range: rIndex..<pXml.endIndex) {
             guard let rCloseBracket = pXml.range(of: ">", range: rStartRange.upperBound..<pXml.endIndex) else { break }
             guard let rEndRange = pXml.range(of: "</w:r>", range: rCloseBracket.upperBound..<pXml.endIndex) else { break }
             
             let runXml = String(pXml[rCloseBracket.upperBound..<rEndRange.lowerBound])
-            
-            // Check formatting properties
             var isBold = false
             var isItalic = false
             if let rPrStart = runXml.range(of: "<w:rPr") {
@@ -423,7 +397,6 @@ public class TextExtractor {
                 }
             }
             
-            // Extract text in this run
             var runText = ""
             var tIndex = runXml.startIndex
             while let tStartRange = runXml.range(of: "<w:t", range: tIndex..<runXml.endIndex) {
@@ -445,14 +418,11 @@ public class TextExtractor {
                     paragraphText += runText
                 }
             }
-            
             rIndex = rEndRange.upperBound
         }
-        
         return paragraphText.trimmingCharacters(in: .whitespaces)
     }
     
-    // Scanner utilities
     private static func scanTagContent(in xml: String, tagName: String) -> String? {
         let openTag = "<\(tagName)"
         let closeTag = "</\(tagName)>"

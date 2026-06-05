@@ -3,13 +3,15 @@ import AVFoundation
 import NaturalLanguage
 import Combine
 
-public class SpeechManager: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
+public class ReaderSyncService: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
     
     @Published public var isPlaying: Bool = false
     @Published public var currentSentenceIndex: Int = 0
     @Published public var currentWordRange: NSRange? = nil
+    
+    // Configurable voice parameters
     @Published public var speedMultiplier: Double = 1.0 // 0.5x to 2.0x
-    @Published public var availableVoices: [AVSpeechSynthesisVoice] = []
+    @Published public var pitchMultiplier: Float = 1.0 // 0.5 to 2.0
     @Published public var selectedVoice: AVSpeechSynthesisVoice?
     
     public var sentences: [String] = []
@@ -20,42 +22,33 @@ public class SpeechManager: NSObject, ObservableObject, AVSpeechSynthesizerDeleg
     public override init() {
         super.init()
         self.synthesizer.delegate = self
-        loadVoices()
         configureAudioSession()
+        loadDefaultVoice()
     }
     
-    @objc public func loadVoices() {
-        let allVoices = AVSpeechSynthesisVoice.speechVoices()
-        // Filter for English or standard reader voices, but sort Siri/Premium voices first
+    private func loadDefaultVoice() {
         let preferredLanguage = Locale.preferredLanguages.first ?? "en-US"
         let baseLang = preferredLanguage.components(separatedBy: "-").first ?? "en"
+        let allVoices = AVSpeechSynthesisVoice.speechVoices()
         
-        // Sort: Preferred language first, then quality (enhanced/premium/siri first)
-        let sorted = allVoices.filter { $0.language.hasPrefix(baseLang) }.sorted { v1, v2 in
+        let filtered = allVoices.filter { $0.language.hasPrefix(baseLang) }.sorted { v1, v2 in
             let q1 = v1.quality.rawValue
             let q2 = v2.quality.rawValue
             if q1 != q2 {
-                return q1 > q2 // higher quality first (premium = 2, enhanced = 1, default = 0)
+                return q1 > q2
             }
             return v1.name < v2.name
         }
         
-        DispatchQueue.main.async {
-            self.availableVoices = sorted.isEmpty ? allVoices : sorted
-            if self.selectedVoice == nil {
-                // Default to Siri or enhanced voice if available, otherwise first
-                self.selectedVoice = self.availableVoices.first(where: {
-                    $0.quality == .enhanced || $0.name.contains("Siri") || $0.name.contains("Personal")
-                }) ?? AVSpeechSynthesisVoice(language: preferredLanguage) ?? self.availableVoices.first
-            }
-        }
+        self.selectedVoice = filtered.first(where: {
+            $0.quality == .enhanced || $0.name.contains("Siri") || $0.name.contains("Personal")
+        }) ?? AVSpeechSynthesisVoice(language: preferredLanguage) ?? allVoices.first
     }
     
     private func configureAudioSession() {
         do {
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers, .interruptSpokenAudioAndMixWithOthers])
-            // Do not force active immediately unless we speak, but good practice
         } catch {
             print("Failed to configure audio session category: \(error)")
         }
@@ -80,13 +73,12 @@ public class SpeechManager: NSObject, ObservableObject, AVSpeechSynthesizerDeleg
     // MARK: - Playback Controls
     
     public func loadDocument(id: UUID, text: String, startIndex: Int, progressCallback: @escaping (Int) -> Void) {
-        // Stop current speech if any
         stop()
         
         self.activeDocumentId = id
         self.onProgressChange = progressCallback
         
-        // Tokenize into sentences
+        // Segment the document's text into sentences
         self.sentences = segmentTextIntoSentences(text)
         self.currentSentenceIndex = min(max(0, startIndex), max(0, sentences.count - 1))
         self.currentWordRange = nil
@@ -139,7 +131,6 @@ public class SpeechManager: NSObject, ObservableObject, AVSpeechSynthesizerDeleg
         if nextIndex < sentences.count {
             jumpToSentence(index: nextIndex)
         } else {
-            // Reached the end
             stop()
         }
     }
@@ -150,7 +141,6 @@ public class SpeechManager: NSObject, ObservableObject, AVSpeechSynthesizerDeleg
         if prevIndex >= 0 {
             jumpToSentence(index: prevIndex)
         } else {
-            // Already at the beginning
             jumpToSentence(index: 0)
         }
     }
@@ -181,29 +171,19 @@ public class SpeechManager: NSObject, ObservableObject, AVSpeechSynthesizerDeleg
         let utterance = AVSpeechUtterance(string: sentenceText)
         
         // Map speed multiplier (0.5x to 2.0x) to AVSpeechUtterance rate
-        // rate ranges from AVSpeechUtteranceMinimumSpeechRate (0.0) to AVSpeechUtteranceMaximumSpeechRate (1.0).
-        // Default rate is AVSpeechUtteranceDefaultSpeechRate (0.5).
         let rate: Float
         if speedMultiplier == 1.0 {
             rate = AVSpeechUtteranceDefaultSpeechRate
         } else if speedMultiplier < 1.0 {
-            // Interpolate between minimum (0.0) and default (0.5)
-            // 0.5x multiplier -> rate 0.25
             rate = Float(speedMultiplier) * AVSpeechUtteranceDefaultSpeechRate
         } else {
-            // Interpolate between default (0.5) and maximum (1.0)
-            // 2.0x multiplier -> rate 1.0
-            let scale = (speedMultiplier - 1.0) / 1.0 // 0 to 1
+            let scale = (speedMultiplier - 1.0) / 1.0
             rate = AVSpeechUtteranceDefaultSpeechRate + Float(scale) * (AVSpeechUtteranceMaximumSpeechRate - AVSpeechUtteranceDefaultSpeechRate)
         }
         
         utterance.rate = max(AVSpeechUtteranceMinimumSpeechRate, min(AVSpeechUtteranceMaximumSpeechRate, rate))
         utterance.voice = selectedVoice
-        
-        // Pitch setting for natural speaking
-        utterance.pitchMultiplier = 1.0
-        
-        // Pre-utterance delay can make transition less jarring
+        utterance.pitchMultiplier = pitchMultiplier
         utterance.preUtteranceDelay = 0.05
         
         synthesizer.speak(utterance)

@@ -2,13 +2,14 @@ import SwiftUI
 import SwiftData
 
 @main
-public struct ETPReaderApp: App {
+public struct AetherApp: App {
     
     public var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Document.self,
             ReadingProgress.self,
-            Highlight.self
+            Highlight.self,
+            VoiceProfile.self
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
@@ -23,8 +24,8 @@ public struct ETPReaderApp: App {
 
     public var body: some Scene {
         WindowGroup {
-            HomeView()
-                .preferredColorScheme(.dark) // Focus-first dark style
+            DashboardView()
+                .preferredColorScheme(.dark) // Force dark, distraction-free aesthetic
         }
         .modelContainer(sharedModelContainer)
     }

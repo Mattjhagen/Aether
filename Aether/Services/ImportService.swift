@@ -18,19 +18,20 @@ extension UTType {
     }
 }
 
-public class DocumentImporter {
+public class ImportService {
     
     public static let allowedContentTypes: [UTType] = [
         .pdf,
         .plainText,
         .epub,
         .docx,
-        .markdown
+        .markdown,
+        .rtf
     ]
     
     @MainActor
     public static func importFile(from url: URL, into modelContext: ModelContext) async throws -> Document {
-        // Security-scoped access is required for files imported via UIDocumentPickerViewController / fileImporter
+        // Security-scoped access is required for files imported via UIDocumentPickerViewController
         guard url.startAccessingSecurityScopedResource() else {
             throw TextExtractorError.parsingFailed("Failed to access security-scoped URL resource.")
         }
@@ -39,10 +40,9 @@ public class DocumentImporter {
             url.stopAccessingSecurityScopedResource()
         }
         
-        // Read file contents on a background Task to prevent blocking the UI
         let fileExtension = url.pathExtension.lowercased()
         
-        // We copy the file to a temporary local workspace directory to perform secure extraction
+        // Copy the file to a temporary local workspace directory to perform secure extraction
         let tempDir = FileManager.default.temporaryDirectory
         let tempFileUrl = tempDir.appendingPathComponent(UUID().uuidString).appendingPathExtension(fileExtension)
         
