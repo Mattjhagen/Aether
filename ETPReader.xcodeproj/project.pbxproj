@@ -1,0 +1,318 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		110000011FA0000100000001 /* ETPReaderApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000011FA0000100000002 /* ETPReaderApp.swift */; };
+		110000011FA0000200000001 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000011FA0000200000002 /* Models.swift */; };
+		110000011FA0000300000001 /* SpeechManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000011FA0000300000002 /* SpeechManager.swift */; };
+		110000011FA0000400000001 /* TextExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000011FA0000400000002 /* TextExtractor.swift */; };
+		110000011FA0000500000001 /* ZipArchive.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000011FA0000500000002 /* ZipArchive.swift */; };
+		110000011FA0000600000001 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000011FA0000600000002 /* HomeView.swift */; };
+		110000011FA0000700000001 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000011FA0000700000002 /* LibraryView.swift */; };
+		110000011FA0000800000001 /* ReadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000011FA0000800000002 /* ReadingView.swift */; };
+		110000011FA0000900000001 /* DocumentImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000011FA0000900000002 /* DocumentImporter.swift */; };
+		110000011FA0000A00000001 /* Utils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000011FA0000A00000002 /* Utils.swift */; };
+		110000011FA0000B00000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 110000011FA0000B00000002 /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		110000011FA0000100000002 /* ETPReaderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ETPReaderApp.swift; sourceTree = "<group>"; };
+		110000011FA0000200000002 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		110000011FA0000300000002 /* SpeechManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechManager.swift; sourceTree = "<group>"; };
+		110000011FA0000400000002 /* TextExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextExtractor.swift; sourceTree = "<group>"; };
+		110000011FA0000500000002 /* ZipArchive.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZipArchive.swift; sourceTree = "<group>"; };
+		110000011FA0000600000002 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		110000011FA0000700000002 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
+		110000011FA0000800000002 /* ReadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadingView.swift; sourceTree = "<group>"; };
+		110000011FA0000900000002 /* DocumentImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentImporter.swift; sourceTree = "<group>"; };
+		110000011FA0000A00000002 /* Utils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Utils.swift; sourceTree = "<group>"; };
+		110000011FA0000B00000002 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		110000011FA0000C00000002 /* ETPReader.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ETPReader.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		110000011FA0000D00000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		110000011FA0000E00000001 /* CustomTemplate */ = {
+			isa = PBXGroup;
+			children = (
+				110000011FA0000E00000002 /* ETPReader */,
+				110000011FA0000C00000002 /* ETPReader.app */,
+			);
+			sourceTree = "<group>";
+		};
+		110000011FA0000E00000002 /* ETPReader */ = {
+			isa = PBXGroup;
+			path = ETPReader;
+			sourceTree = "<group>";
+			children = (
+				110000011FA0000100000002 /* ETPReaderApp.swift */,
+				110000011FA0000200000002 /* Models.swift */,
+				110000011FA0000300000002 /* SpeechManager.swift */,
+				110000011FA0000400000002 /* TextExtractor.swift */,
+				110000011FA0000500000002 /* ZipArchive.swift */,
+				110000011FA0000600000002 /* HomeView.swift */,
+				110000011FA0000700000002 /* LibraryView.swift */,
+				110000011FA0000800000002 /* ReadingView.swift */,
+				110000011FA0000900000002 /* DocumentImporter.swift */,
+				110000011FA0000A00000002 /* Utils.swift */,
+				110000011FA0000B00000002 /* Assets.xcassets */,
+			);
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		110000011FA0000F00000001 /* ETPReader */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 110000011FA0001000000001 /* Build configuration list for PBXNativeTarget "ETPReader" */;
+			buildPhases = (
+				110000011FA0001100000001 /* Sources */,
+				110000011FA0000D00000001 /* Frameworks */,
+				110000011FA0001200000001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ETPReader;
+			productName = ETPReader;
+			productReference = 110000011FA0000C00000002 /* ETPReader.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		110000011FA0001300000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					110000011FA0000F00000001 = {
+						CreatedOnToolsVersion = 15.0;
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 110000011FA0001400000001 /* Build configuration list for PBXProject "ETPReader" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 110000011FA0000E00000001 /* CustomTemplate */;
+			productRefGroup = 110000011FA0000E00000001 /* CustomTemplate */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				110000011FA0000F00000001 /* ETPReader */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		110000011FA0001200000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				110000011FA0000B00000001 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		110000011FA0001100000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				110000011FA0000100000001 /* ETPReaderApp.swift in Sources */,
+				110000011FA0000200000001 /* Models.swift in Sources */,
+				110000011FA0000300000001 /* SpeechManager.swift in Sources */,
+				110000011FA0000400000001 /* TextExtractor.swift in Sources */,
+				110000011FA0000500000001 /* ZipArchive.swift in Sources */,
+				110000011FA0000600000001 /* HomeView.swift in Sources */,
+				110000011FA0000700000001 /* LibraryView.swift in Sources */,
+				110000011FA0000800000001 /* ReadingView.swift in Sources */,
+				110000011FA0000900000001 /* DocumentImporter.swift in Sources */,
+				110000011FA0000A00000001 /* Utils.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		110000011FA0001500000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		110000011FA0001500000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = Release;
+		};
+		110000011FA0001600000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				APP_SANDBOX = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIUISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UIUISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.etpreader.ETPReader;
+				PRODUCT_NAME = ETPReader;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		110000011FA0001600000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				APP_SANDBOX = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIUISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UIUISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.etpreader.ETPReader;
+				PRODUCT_NAME = ETPReader;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		110000011FA0001000000001 /* Build configuration list for PBXNativeTarget "ETPReader" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				110000011FA0001600000001 /* Debug */,
+				110000011FA0001600000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		110000011FA0001400000001 /* Build configuration list for PBXProject "ETPReader" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				110000011FA0001500000001 /* Debug */,
+				110000011FA0001500000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 110000011FA0001300000001 /* Project object */;
+}
