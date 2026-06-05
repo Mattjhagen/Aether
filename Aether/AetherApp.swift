@@ -16,7 +16,26 @@ public struct AetherApp: App {
         do {
             return try ModelContainer(for: schema, configurations: [modelConfiguration])
         } catch {
-            fatalError("Could not create SwiftData ModelContainer: \(error.localizedDescription)")
+            print("SwiftData ModelContainer initialization failed (likely due to schema mismatch). Resetting store...")
+            
+            // Clean up the legacy SQLite files from Application Support to solve schema conflicts
+            let fileManager = FileManager.default
+            if let appSupportURL = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+                if let files = try? fileManager.contentsOfDirectory(at: appSupportURL, includingPropertiesForKeys: nil) {
+                    for file in files {
+                        if file.lastPathComponent.contains("default.store") {
+                            try? fileManager.removeItem(at: file)
+                        }
+                    }
+                }
+            }
+            
+            // Attempt to recreate the ModelContainer
+            do {
+                return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            } catch {
+                fatalError("Could not create SwiftData ModelContainer after reset: \(error.localizedDescription)")
+            }
         }
     }()
 
