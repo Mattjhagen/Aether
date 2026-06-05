@@ -3,11 +3,24 @@ import AVFoundation
 import NaturalLanguage
 import Combine
 
+public struct ChapterLink: Identifiable, Hashable {
+    public let id: UUID
+    public let title: String
+    public let sentenceIndex: Int
+    
+    public init(id: UUID = UUID(), title: String, sentenceIndex: Int) {
+        self.id = id
+        self.title = title
+        self.sentenceIndex = sentenceIndex
+    }
+}
+
 public class ReaderSyncService: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
     
     @Published public var isPlaying: Bool = false
     @Published public var currentSentenceIndex: Int = 0
     @Published public var currentWordRange: NSRange? = nil
+    @Published public var chapters: [ChapterLink] = []
     
     // Configurable voice parameters
     @Published public var speedMultiplier: Double = 1.0 // 0.5x to 2.0x
@@ -80,6 +93,7 @@ public class ReaderSyncService: NSObject, ObservableObject, AVSpeechSynthesizerD
         
         // Segment the document's text into sentences
         self.sentences = segmentTextIntoSentences(text)
+        extractChapters()
         self.currentSentenceIndex = min(max(0, startIndex), max(0, sentences.count - 1))
         self.currentWordRange = nil
     }
@@ -97,6 +111,25 @@ public class ReaderSyncService: NSObject, ObservableObject, AVSpeechSynthesizerD
             return true
         }
         return list.isEmpty ? [text] : list
+    }
+    
+    private func extractChapters() {
+        var links: [ChapterLink] = []
+        for (index, sentence) in sentences.enumerated() {
+            let trimmed = sentence.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.hasPrefix("#") {
+                let cleanTitle = trimmed.trimmingCharacters(in: CharacterSet(charactersIn: "#").union(.whitespacesAndNewlines))
+                links.append(ChapterLink(title: cleanTitle, sentenceIndex: index))
+            } else if trimmed.uppercased().hasPrefix("CHAPTER ") || trimmed.uppercased().hasPrefix("PART ") {
+                links.append(ChapterLink(title: trimmed, sentenceIndex: index))
+            }
+        }
+        
+        if links.isEmpty {
+            links.append(ChapterLink(title: "Beginning", sentenceIndex: 0))
+        }
+        
+        self.chapters = links
     }
     
     public func play() {

@@ -15,8 +15,9 @@ public struct ReaderView: View {
     @State private var isFocusMode: Bool = false
     @State private var autoHideTimer: Timer? = nil
     
-    // Settings overlay
+    // Settings & Chapters overlays
     @State private var showSettings: Bool = false
+    @State private var showChapters: Bool = false
     
     // User reading preferences
     @State private var fontSize: CGFloat = 22
@@ -126,12 +127,10 @@ public struct ReaderView: View {
                             }
                         }
                     }
-                    // Auto-scroll centering
+                    // Auto-scroll centering (Triggered on any sentence index update)
                     .onChange(of: syncService.currentSentenceIndex) { _, newIndex in
-                        if syncService.isPlaying {
-                            withAnimation(.metroFocus) {
-                                proxy.scrollTo(newIndex, anchor: .center)
-                            }
+                        withAnimation(.metroFocus) {
+                            proxy.scrollTo(newIndex, anchor: .center)
                         }
                     }
                     .onAppear {
@@ -316,12 +315,30 @@ public struct ReaderView: View {
                             .buttonStyle(PlainButtonStyle())
                         }
                         
-                        // Options Toggle
-                        HStack {
+                        // Options and Chapters Toggles
+                        HStack(spacing: 40) {
                             Spacer()
+                            
+                            Button(action: {
+                                withAnimation(.metroTransition) {
+                                    showChapters.toggle()
+                                    showSettings = false
+                                }
+                                resetAutoHideTimer()
+                            }) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "list.bullet")
+                                    Text("CHAPTERS")
+                                }
+                                .font(.system(size: 11, weight: .bold))
+                                .tracking(1)
+                                .foregroundColor(.metroLightGray)
+                            }
+                            
                             Button(action: {
                                 withAnimation(.metroTransition) {
                                     showSettings.toggle()
+                                    showChapters = false
                                 }
                                 resetAutoHideTimer()
                             }) {
@@ -333,6 +350,7 @@ public struct ReaderView: View {
                                 .tracking(1)
                                 .foregroundColor(.metroLightGray)
                             }
+                            
                             Spacer()
                         }
                         .padding(.top, 4)
@@ -477,6 +495,86 @@ public struct ReaderView: View {
                                     }
                                 }
                             }
+                        }
+                        .padding(24)
+                        .background(Color.metroBlack)
+                        .border(Color.metroGray, width: 1)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 40)
+                    }
+                }
+                .transition(.move(edge: .bottom))
+            }
+            
+            // Custom Chapters Overlay Sheet (Table of Contents)
+            if showChapters {
+                ZStack {
+                    Color.black.opacity(0.6)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.metroTransition) {
+                                showChapters = false
+                            }
+                            resetAutoHideTimer()
+                        }
+                    
+                    VStack {
+                        Spacer()
+                        
+                        VStack(alignment: .leading, spacing: 24) {
+                            HStack {
+                                Text("CHAPTERS")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .tracking(2)
+                                    .foregroundColor(.metroSilver)
+                                Spacer()
+                                Button(action: {
+                                    withAnimation(.metroTransition) {
+                                        showChapters = false
+                                    }
+                                    resetAutoHideTimer()
+                                }) {
+                                    Image(systemName: "xmark")
+                                        .font(.footnote)
+                                        .foregroundColor(.metroWhite)
+                                        .padding(8)
+                                        .background(Color.metroGray)
+                                }
+                            }
+                            .padding(.bottom, 8)
+                            
+                            // Scroll list of chapter links styled as minimalist hyperlinks
+                            ScrollView {
+                                VStack(alignment: .leading, spacing: 16) {
+                                    ForEach(syncService.chapters) { chapter in
+                                        Button(action: {
+                                            withAnimation(.metroFocus) {
+                                                syncService.jumpToSentence(index: chapter.sentenceIndex)
+                                                showChapters = false
+                                            }
+                                            resetAutoHideTimer()
+                                        }) {
+                                            VStack(alignment: .leading, spacing: 4) {
+                                                Text(chapter.title)
+                                                    .font(.system(size: 15, weight: .bold))
+                                                    .foregroundColor(syncService.currentSentenceIndex >= chapter.sentenceIndex ? .metroWhite : .metroLightGray)
+                                                    .multilineTextAlignment(.leading)
+                                                
+                                                Text("Index \(chapter.sentenceIndex + 1)")
+                                                    .font(.system(size: 11, weight: .semibold))
+                                                    .foregroundColor(.metroTextMuted)
+                                            }
+                                            .padding(.vertical, 8)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                        }
+                                        .buttonStyle(PlainButtonStyle())
+                                        
+                                        Divider()
+                                            .background(Color.metroGray)
+                                    }
+                                }
+                            }
+                            .frame(maxHeight: 300)
                         }
                         .padding(24)
                         .background(Color.metroBlack)
