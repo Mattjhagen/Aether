@@ -22,6 +22,7 @@
 		AEE000011FA0030300000001 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEE000011FA0030300000002 /* LibraryView.swift */; };
 		AEE000011FA0030400000001 /* VoiceCenterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEE000011FA0030400000002 /* VoiceCenterView.swift */; };
 		AEE000011FA0030500000001 /* PersonalVoiceOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEE000011FA0030500000002 /* PersonalVoiceOnboardingView.swift */; };
+		AEE000011FA0040500000001 /* FirstRunTutorialView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEE000011FA0040500000002 /* FirstRunTutorialView.swift */; };
 		AEE000011FA0000B00000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AEE000011FA0000B00000002 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -41,6 +42,7 @@
 		AEE000011FA0030300000002 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/Library/LibraryView.swift; sourceTree = "<group>"; };
 		AEE000011FA0030400000002 /* VoiceCenterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/VoiceCenter/VoiceCenterView.swift; sourceTree = "<group>"; };
 		AEE000011FA0030500000002 /* PersonalVoiceOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/VoiceCenter/PersonalVoiceOnboardingView.swift; sourceTree = "<group>"; };
+		AEE000011FA0040500000002 /* FirstRunTutorialView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/VoiceCenter/FirstRunTutorialView.swift; sourceTree = "<group>"; };
 		AEE000011FA0000B00000002 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		110000011FA0000C00000002 /* Aether.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Aether.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -82,6 +84,7 @@
 				AEE000011FA0030300000002 /* LibraryView.swift */,
 				AEE000011FA0030400000002 /* VoiceCenterView.swift */,
 				AEE000011FA0030500000002 /* PersonalVoiceOnboardingView.swift */,
+				AEE000011FA0040500000002 /* FirstRunTutorialView.swift */,
 				AEE000011FA0000B00000002 /* Assets.xcassets */,
 			);
 			path = Aether;
@@ -172,6 +175,7 @@
 				AEE000011FA0030300000001 /* LibraryView.swift in Sources */,
 				AEE000011FA0030400000001 /* VoiceCenterView.swift in Sources */,
 				AEE000011FA0030500000001 /* PersonalVoiceOnboardingView.swift in Sources */,
+				AEE000011FA0040500000001 /* FirstRunTutorialView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

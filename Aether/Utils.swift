@@ -9,28 +9,155 @@ extension Color {
     public static let metroSilver = Color(red: 0.9, green: 0.9, blue: 0.9) // Muted text/icons
     public static let metroWhite = Color.white // Primary text
     
-    // Highlight colors (strictly grayscale)
-    public static let metroReadHighlight = Color(red: 0.25, green: 0.25, blue: 0.25) // Subtle gray for active sentence background
-    public static let metroWordHighlight = Color.white // Active word foreground
-    public static let metroTextMuted = Color(red: 0.45, green: 0.45, blue: 0.45) // Unread sentence foreground
+    // Highlight colors (grayscale)
+    public static let metroReadHighlight = Color(red: 0.25, green: 0.25, blue: 0.25)
+    public static let metroWordHighlight = Color.white
+    public static let metroTextMuted = Color(red: 0.45, green: 0.45, blue: 0.45)
 }
 
 // MARK: - Typography Settings
 public enum ReadingFont: String, CaseIterable, Identifiable {
     case system = "System Sans"
     case georgia = "Georgia"
+    case charter = "Charter"
+    case palatino = "Palatino"
+    case baskerville = "Baskerville"
+    case iowan = "Iowan Old Style"
+    case avenir = "Avenir Next"
     case courier = "Courier New"
+    case mono = "Mono"
     
     public var id: String { self.rawValue }
+    
+    public var fontName: String? {
+        switch self {
+        case .system: return nil
+        case .georgia: return "Georgia"
+        case .charter: return "Charter-Roman"
+        case .palatino: return "Palatino-Roman"
+        case .baskerville: return "Baskerville"
+        case .iowan: return "IowanOldStyle-Roman"
+        case .avenir: return "AvenirNext-Regular"
+        case .courier: return "CourierNewPSMT"
+        case .mono: return "Courier"
+        }
+    }
     
     public func font(size: CGFloat) -> Font {
         switch self {
         case .system:
             return .system(size: size, weight: .regular, design: .default)
-        case .georgia:
-            return .custom("Georgia", size: size)
-        case .courier:
-            return .custom("Courier New", size: size)
+        case .mono:
+            return .system(size: size, weight: .regular, design: .monospaced)
+        default:
+            if let name = self.fontName {
+                return .custom(name, size: size)
+            }
+            return .system(size: size)
+        }
+    }
+}
+
+// MARK: - Layout Alignments & Letter Spacing (Tracking)
+public enum ReadingAlignment: String, CaseIterable, Identifiable {
+    case leading = "Left"
+    case center = "Center"
+    case trailing = "Right"
+    
+    public var id: String { self.rawValue }
+    
+    public var multilineAlignment: TextAlignment {
+        switch self {
+        case .leading: return .leading
+        case .center: return .center
+        case .trailing: return .trailing
+        }
+    }
+}
+
+public enum ReadingTracking: String, CaseIterable, Identifiable {
+    case tight = "Tight"
+    case normal = "Normal"
+    case loose = "Loose"
+    case wide = "Wide"
+    
+    public var id: String { self.rawValue }
+    
+    public var value: CGFloat {
+        switch self {
+        case .tight: return -0.4
+        case .normal: return 0.0
+        case .loose: return 0.8
+        case .wide: return 1.6
+        }
+    }
+}
+
+// MARK: - Reader Backdrops (Grayscale themes)
+public enum ReaderBackdrop: String, CaseIterable, Identifiable {
+    case midnight = "Midnight"
+    case charcoal = "Charcoal"
+    case slate = "Slate"
+    
+    public var id: String { self.rawValue }
+    
+    public var backgroundColor: Color {
+        switch self {
+        case .midnight:
+            return .black
+        case .charcoal:
+            return Color(red: 0.09, green: 0.09, blue: 0.09) // `#171717`
+        case .slate:
+            return Color(red: 0.88, green: 0.88, blue: 0.88) // `#E0E0E0` (Slate light gray)
+        }
+    }
+    
+    public var primaryTextColor: Color {
+        switch self {
+        case .midnight, .charcoal:
+            return .white
+        case .slate:
+            return Color(red: 0.08, green: 0.08, blue: 0.08) // `#141414`
+        }
+    }
+    
+    public var secondaryTextColor: Color {
+        switch self {
+        case .midnight, .charcoal:
+            return Color(red: 0.6, green: 0.6, blue: 0.6)
+        case .slate:
+            return Color(red: 0.42, green: 0.42, blue: 0.42) // Charcoal subtext
+        }
+    }
+    
+    public var panelBackgroundColor: Color {
+        switch self {
+        case .midnight:
+            return Color(red: 0.08, green: 0.08, blue: 0.08)
+        case .charcoal:
+            return Color(red: 0.14, green: 0.14, blue: 0.14)
+        case .slate:
+            return Color(red: 0.94, green: 0.94, blue: 0.95) // Lighter grey panel for slate
+        }
+    }
+    
+    public var borderColor: Color {
+        switch self {
+        case .midnight:
+            return Color(red: 0.18, green: 0.18, blue: 0.18)
+        case .charcoal:
+            return Color(red: 0.25, green: 0.25, blue: 0.25)
+        case .slate:
+            return Color(red: 0.72, green: 0.72, blue: 0.72) // Muted darker border for slate
+        }
+    }
+    
+    public var activeWordHighlightColor: Color {
+        switch self {
+        case .midnight, .charcoal:
+            return .white
+        case .slate:
+            return .black
         }
     }
 }
@@ -43,19 +170,16 @@ public struct MetroTileButtonStyle: ButtonStyle {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
             .opacity(configuration.isPressed ? 0.85 : 1.0)
-            // Organic, soft, deliberate animation mimicking Windows Phone tilt but softer for iOS 26
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 
 // MARK: - Motion Settings
 extension Animation {
-    /// Soft, organic, deliberate animation for focus transitions. No bounce, no flash.
     public static var metroFocus: Animation {
         .easeInOut(duration: 0.4)
     }
     
-    /// Soft transition for buttons and items appearing/disappearing
     public static var metroTransition: Animation {
         .easeOut(duration: 0.25)
     }
@@ -67,6 +191,8 @@ public struct ReadingSettings {
     public var lineSpacing: CGFloat = 8.0
     public var marginSize: CGFloat = 24.0
     public var fontStyle: ReadingFont = .georgia
+    public var alignment: ReadingAlignment = .leading
+    public var tracking: ReadingTracking = .normal
 }
 
 // MARK: - String Extension for character index finding

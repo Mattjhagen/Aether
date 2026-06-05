@@ -13,6 +13,9 @@ public struct DashboardView: View {
     @State private var isVoiceCenterPresented = false
     @State private var navigationPath = NavigationPath()
     
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
+    @StateObject private var voiceService = VoiceService.shared
+    
     public init() {}
     
     private var recentDocument: Document? {
@@ -273,13 +276,31 @@ public struct DashboardView: View {
                                     
                                     Spacer()
                                     
-                                    Image(systemName: "slider.horizontal.3")
-                                        .font(.system(size: 32, weight: .light))
-                                        .foregroundColor(.metroWhite)
+                                    if !voiceService.personalVoices.isEmpty {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "sparkles")
+                                                .font(.system(size: 9))
+                                            Text("PERSONAL ACTIVE")
+                                                .font(.system(size: 8, weight: .bold))
+                                        }
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 3)
+                                        .background(Color.metroGray)
+                                    } else {
+                                        Image(systemName: "slider.horizontal.3")
+                                            .font(.system(size: 32, weight: .light))
+                                            .foregroundColor(.metroWhite)
+                                    }
                                     
-                                    Text("Voice Center")
-                                        .font(.system(size: 12, weight: .medium))
-                                        .foregroundColor(.metroLightGray)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Voice Center")
+                                            .font(.system(size: 12, weight: .medium))
+                                            .foregroundColor(.metroWhite)
+                                        Text(voiceService.personalVoices.isEmpty ? "Setup Personal Voice" : "Personal Voice Active")
+                                            .font(.system(size: 9))
+                                            .foregroundColor(.metroLightGray)
+                                    }
                                 }
                                 .padding(24)
                                 .frame(maxWidth: .infinity)
@@ -402,6 +423,15 @@ public struct DashboardView: View {
             }
             .sheet(isPresented: $isVoiceCenterPresented) {
                 VoiceCenterView()
+            }
+            .fullScreenCover(isPresented: Binding(
+                get: { !hasCompletedOnboarding },
+                set: { hasCompletedOnboarding = !$0 }
+            )) {
+                FirstRunTutorialView(hasCompletedOnboarding: $hasCompletedOnboarding)
+            }
+            .onAppear {
+                voiceService.loadVoices()
             }
             .navigationDestination(for: String.self) { val in
                 if val == "library" {

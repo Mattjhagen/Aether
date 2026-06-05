@@ -21,9 +21,24 @@ public struct VoiceCenterView: View {
         return (try? modelContext.fetch(descriptor))?.first
     }
     
-    // Filter voices based on selected language
+    // Filter and sort voices based on selected language (Siri & Premium first)
     private var filteredVoices: [AVSpeechSynthesisVoice] {
-        voiceService.availableVoices.filter { $0.language == selectedLanguage }
+        voiceService.availableVoices
+            .filter { $0.language == selectedLanguage }
+            .sorted { v1, v2 in
+                let isSiri1 = v1.name.contains("Siri")
+                let isSiri2 = v2.name.contains("Siri")
+                if isSiri1 != isSiri2 {
+                    return isSiri1
+                }
+                
+                let q1 = v1.quality.rawValue
+                let q2 = v2.quality.rawValue
+                if q1 != q2 {
+                    return q1 > q2
+                }
+                return v1.name < v2.name
+            }
     }
     
     public init() {}
@@ -38,15 +53,29 @@ public struct VoiceCenterView: View {
                     VStack(alignment: .leading, spacing: 32) {
                         
                         // Header
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("AETHER")
-                                .font(.system(size: 11, weight: .bold))
-                                .tracking(3)
-                                .foregroundColor(.metroSilver)
-                            Text("VOICE CENTER")
-                                .font(.system(size: 36, weight: .black))
-                                .foregroundColor(.metroWhite)
-                                .tracking(-1)
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("AETHER")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .tracking(3)
+                                    .foregroundColor(.metroSilver)
+                                Text("VOICE CENTER")
+                                    .font(.system(size: 36, weight: .black))
+                                    .foregroundColor(.metroWhite)
+                                    .tracking(-1)
+                            }
+                            
+                            Spacer()
+                            
+                            Button(action: {
+                                dismiss()
+                            }) {
+                                Image(systemName: "xmark")
+                                    .font(.headline)
+                                    .foregroundColor(.metroWhite)
+                                    .padding(8)
+                                    .background(Color.metroGray)
+                            }
                         }
                         .padding(.top, 24)
                         
@@ -220,15 +249,7 @@ public struct VoiceCenterView: View {
             .sheet(isPresented: $showPersonalVoiceOnboarding) {
                 PersonalVoiceOnboardingView()
             }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                    .foregroundColor(.metroWhite)
-                    .font(.system(size: 14, weight: .bold))
-                }
-            }
+            // Dismiss via header close button
         }
     }
     

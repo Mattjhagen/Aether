@@ -24,6 +24,10 @@ public struct ReaderView: View {
     @State private var lineSpacing: CGFloat = 8
     @State private var marginSize: CGFloat = 24
     @State private var selectedFont: ReadingFont = .georgia
+    @State private var selectedBackdrop: ReaderBackdrop = .midnight
+    @State private var selectedAlignment: ReadingAlignment = .leading
+    @State private var selectedTracking: ReadingTracking = .normal
+    @StateObject private var voiceService = VoiceService.shared
     
     public init(document: Document) {
         self.document = document
@@ -31,8 +35,8 @@ public struct ReaderView: View {
     
     public var body: some View {
         ZStack {
-            // Metro Black Background
-            Color.metroBlack
+            // Dynamic Backdrop Background
+            selectedBackdrop.backgroundColor
                 .ignoresSafeArea()
             
             // Core Text Scroll View
@@ -50,16 +54,16 @@ public struct ReaderView: View {
                                 VStack(alignment: .leading, spacing: 8) {
                                     Text(document.title.uppercased())
                                         .font(.system(size: 28, weight: .black))
-                                        .foregroundColor(.metroWhite)
+                                        .foregroundColor(selectedBackdrop.primaryTextColor)
                                         .tracking(-0.5)
                                     
                                     Text(document.author)
                                         .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(.metroLightGray)
+                                        .foregroundColor(selectedBackdrop.secondaryTextColor)
                                         .tracking(1)
                                     
                                     Divider()
-                                        .background(Color.metroGray)
+                                        .background(selectedBackdrop.borderColor)
                                         .padding(.vertical, 16)
                                 }
                                 .padding(.horizontal, marginSize)
@@ -71,7 +75,7 @@ public struct ReaderView: View {
                             if syncService.sentences.isEmpty {
                                 Text("This document contains no readable text.")
                                     .font(selectedFont.font(size: fontSize))
-                                    .foregroundColor(.metroLightGray)
+                                    .foregroundColor(selectedBackdrop.secondaryTextColor)
                                     .padding(.horizontal, marginSize)
                             } else {
                                 ForEach(0..<syncService.sentences.count, id: \.self) { index in
@@ -86,7 +90,10 @@ public struct ReaderView: View {
                                         currentWordRange: syncService.currentWordRange,
                                         font: selectedFont,
                                         fontSize: fontSize,
-                                        lineSpacing: lineSpacing
+                                        lineSpacing: lineSpacing,
+                                        backdrop: selectedBackdrop,
+                                        alignment: selectedAlignment,
+                                        tracking: selectedTracking
                                     )
                                     .id(index)
                                     .padding(.horizontal, marginSize)
@@ -127,7 +134,7 @@ public struct ReaderView: View {
                             }
                         }
                     }
-                    // Auto-scroll centering (Triggered on any sentence index update)
+                    // Auto-scroll centering
                     .onChange(of: syncService.currentSentenceIndex) { _, newIndex in
                         withAnimation(.metroFocus) {
                             proxy.scrollTo(newIndex, anchor: .center)
@@ -177,9 +184,9 @@ public struct ReaderView: View {
                         }) {
                             Image(systemName: "arrow.left")
                                 .font(.system(size: 18, weight: .bold))
-                                .foregroundColor(.metroWhite)
+                                .foregroundColor(selectedBackdrop.primaryTextColor)
                                 .frame(width: 44, height: 44)
-                                .background(Color.metroBlack.opacity(0.8))
+                                .background(selectedBackdrop.panelBackgroundColor.opacity(0.8))
                                 .clipShape(Circle())
                         }
                         
@@ -192,9 +199,9 @@ public struct ReaderView: View {
                         }) {
                             Image(systemName: document.isFavorite ? "star.fill" : "star")
                                 .font(.system(size: 18))
-                                .foregroundColor(document.isFavorite ? .metroWhite : .metroSilver)
+                                .foregroundColor(document.isFavorite ? selectedBackdrop.primaryTextColor : selectedBackdrop.secondaryTextColor)
                                 .frame(width: 44, height: 44)
-                                .background(Color.metroBlack.opacity(0.8))
+                                .background(selectedBackdrop.panelBackgroundColor.opacity(0.8))
                                 .clipShape(Circle())
                         }
                     }
@@ -212,19 +219,69 @@ public struct ReaderView: View {
                     Spacer()
                     
                     VStack(spacing: 20) {
+                        // Progress Text HUD
+                        Text(getRemainingTimeText())
+                            .font(.system(size: 10, weight: .bold))
+                            .tracking(2)
+                            .foregroundColor(selectedBackdrop.secondaryTextColor)
+                        
                         // Voice & Speed indicators
                         HStack {
                             Menu {
-                                ForEach(VoiceService.shared.availableVoices, id: \.identifier) { voice in
-                                    Button(action: {
-                                        syncService.selectedVoice = voice
-                                        saveVoiceProfile()
-                                        resetAutoHideTimer()
-                                    }) {
-                                        HStack {
-                                            Text("\(voice.name) (\(voice.language))")
-                                            if syncService.selectedVoice?.identifier == voice.identifier {
-                                                Image(systemName: "checkmark")
+                                if !voiceService.personalVoices.isEmpty {
+                                    Section("Personal Voices") {
+                                        ForEach(voiceService.personalVoices, id: \.identifier) { voice in
+                                            Button(action: {
+                                                syncService.selectedVoice = voice
+                                                saveVoiceProfile()
+                                                resetAutoHideTimer()
+                                            }) {
+                                                HStack {
+                                                    Text("🗣️ \(voice.name)")
+                                                    if syncService.selectedVoice?.identifier == voice.identifier {
+                                                        Image(systemName: "checkmark")
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                let siriVoices = voiceService.availableVoices.filter { $0.name.contains("Siri") }
+                                if !siriVoices.isEmpty {
+                                    Section("Siri Voices") {
+                                        ForEach(siriVoices, id: \.identifier) { voice in
+                                            Button(action: {
+                                                syncService.selectedVoice = voice
+                                                saveVoiceProfile()
+                                                resetAutoHideTimer()
+                                            }) {
+                                                HStack {
+                                                    Text("\(voice.name) (\(voice.language))")
+                                                    if syncService.selectedVoice?.identifier == voice.identifier {
+                                                        Image(systemName: "checkmark")
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                let systemVoices = voiceService.availableVoices.filter { !$0.name.contains("Siri") }
+                                if !systemVoices.isEmpty {
+                                    Section("System Voices") {
+                                        ForEach(systemVoices.prefix(15), id: \.identifier) { voice in
+                                            Button(action: {
+                                                syncService.selectedVoice = voice
+                                                saveVoiceProfile()
+                                                resetAutoHideTimer()
+                                            }) {
+                                                HStack {
+                                                    Text("\(voice.name) (\(voice.language))")
+                                                    if syncService.selectedVoice?.identifier == voice.identifier {
+                                                        Image(systemName: "checkmark")
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -236,11 +293,11 @@ public struct ReaderView: View {
                                         .lineLimit(1)
                                 }
                                 .font(.system(size: 13, weight: .bold))
-                                .foregroundColor(.metroSilver)
+                                .foregroundColor(selectedBackdrop.primaryTextColor)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
-                                .background(Color.metroGray)
-                                .border(Color.metroLightGray.opacity(0.2), width: 1)
+                                .background(selectedBackdrop.panelBackgroundColor)
+                                .border(selectedBackdrop.borderColor, width: 1)
                             }
                             
                             Spacer()
@@ -266,11 +323,11 @@ public struct ReaderView: View {
                                     Text(String(format: "%.2fx", syncService.speedMultiplier))
                                 }
                                 .font(.system(size: 13, weight: .bold))
-                                .foregroundColor(.metroSilver)
+                                .foregroundColor(selectedBackdrop.primaryTextColor)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
-                                .background(Color.metroGray)
-                                .border(Color.metroLightGray.opacity(0.2), width: 1)
+                                .background(selectedBackdrop.panelBackgroundColor)
+                                .border(selectedBackdrop.borderColor, width: 1)
                             }
                         }
                         .padding(.horizontal, 8)
@@ -283,7 +340,7 @@ public struct ReaderView: View {
                             }) {
                                 Image(systemName: "gobackward.10")
                                     .font(.system(size: 22, weight: .light))
-                                    .foregroundColor(.metroWhite)
+                                    .foregroundColor(selectedBackdrop.primaryTextColor)
                             }
                             .buttonStyle(PlainButtonStyle())
                             
@@ -297,10 +354,10 @@ public struct ReaderView: View {
                             }) {
                                 Image(systemName: syncService.isPlaying ? "pause.fill" : "play.fill")
                                     .font(.system(size: 32))
-                                    .foregroundColor(.metroWhite)
+                                    .foregroundColor(selectedBackdrop.primaryTextColor)
                                     .frame(width: 72, height: 72)
-                                    .background(Color.metroGray)
-                                    .border(Color.metroLightGray.opacity(0.4), width: 1)
+                                    .background(selectedBackdrop.panelBackgroundColor)
+                                    .border(selectedBackdrop.borderColor, width: 1)
                             }
                             .buttonStyle(MetroTileButtonStyle())
                             
@@ -310,7 +367,7 @@ public struct ReaderView: View {
                             }) {
                                 Image(systemName: "goforward.10")
                                     .font(.system(size: 22, weight: .light))
-                                    .foregroundColor(.metroWhite)
+                                    .foregroundColor(selectedBackdrop.primaryTextColor)
                             }
                             .buttonStyle(PlainButtonStyle())
                         }
@@ -332,7 +389,7 @@ public struct ReaderView: View {
                                 }
                                 .font(.system(size: 11, weight: .bold))
                                 .tracking(1)
-                                .foregroundColor(.metroLightGray)
+                                .foregroundColor(selectedBackdrop.secondaryTextColor)
                             }
                             
                             Button(action: {
@@ -348,7 +405,7 @@ public struct ReaderView: View {
                                 }
                                 .font(.system(size: 11, weight: .bold))
                                 .tracking(1)
-                                .foregroundColor(.metroLightGray)
+                                .foregroundColor(selectedBackdrop.secondaryTextColor)
                             }
                             
                             Spacer()
@@ -356,8 +413,8 @@ public struct ReaderView: View {
                         .padding(.top, 4)
                     }
                     .padding(24)
-                    .background(Color.metroBlack)
-                    .border(Color.metroCharcoal, width: 2)
+                    .background(selectedBackdrop.panelBackgroundColor)
+                    .border(selectedBackdrop.borderColor, width: 1)
                     .padding(.horizontal, 16)
                     .padding(.bottom, 34)
                 }
@@ -368,7 +425,7 @@ public struct ReaderView: View {
             // Custom Settings Overlay Sheet
             if showSettings {
                 ZStack {
-                    Color.black.opacity(0.6)
+                    Color.black.opacity(0.4)
                         .ignoresSafeArea()
                         .onTapGesture {
                             withAnimation(.metroTransition) {
@@ -385,7 +442,7 @@ public struct ReaderView: View {
                                 Text("DISPLAY SETTINGS")
                                     .font(.system(size: 12, weight: .bold))
                                     .tracking(2)
-                                    .foregroundColor(.metroSilver)
+                                    .foregroundColor(selectedBackdrop.secondaryTextColor)
                                 Spacer()
                                 Button(action: {
                                     withAnimation(.metroTransition) {
@@ -395,36 +452,65 @@ public struct ReaderView: View {
                                 }) {
                                     Image(systemName: "xmark")
                                         .font(.footnote)
-                                        .foregroundColor(.metroWhite)
+                                        .foregroundColor(selectedBackdrop.primaryTextColor)
                                         .padding(8)
-                                        .background(Color.metroGray)
+                                        .background(selectedBackdrop.panelBackgroundColor)
                                 }
                             }
                             .padding(.bottom, 8)
+                            
+                            // Backdrop Selection ( Midnight, Charcoal, Slate )
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("BACKDROP")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .tracking(1)
+                                    .foregroundColor(selectedBackdrop.secondaryTextColor)
+                                
+                                HStack(spacing: 12) {
+                                    ForEach(ReaderBackdrop.allCases) { backdrop in
+                                        Button(action: {
+                                            selectedBackdrop = backdrop
+                                            savePreferences()
+                                            resetAutoHideTimer()
+                                        }) {
+                                            Text(backdrop.rawValue.uppercased())
+                                                .font(.system(size: 11, weight: .bold))
+                                                .foregroundColor(selectedBackdrop == backdrop ? selectedBackdrop.primaryTextColor : selectedBackdrop.secondaryTextColor)
+                                                .frame(maxWidth: .infinity)
+                                                .padding(.vertical, 12)
+                                                .background(selectedBackdrop == backdrop ? selectedBackdrop.borderColor : Color.clear)
+                                                .border(selectedBackdrop == backdrop ? selectedBackdrop.primaryTextColor : selectedBackdrop.borderColor, width: 1)
+                                        }
+                                        .buttonStyle(PlainButtonStyle())
+                                    }
+                                }
+                            }
                             
                             // Font Selection
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("TYPEFACE")
                                     .font(.system(size: 10, weight: .bold))
                                     .tracking(1)
-                                    .foregroundColor(.metroLightGray)
+                                    .foregroundColor(selectedBackdrop.secondaryTextColor)
                                 
-                                HStack(spacing: 12) {
-                                    ForEach(ReadingFont.allCases) { rFont in
-                                        Button(action: {
-                                            selectedFont = rFont
-                                            savePreferences()
-                                            resetAutoHideTimer()
-                                        }) {
-                                            Text(rFont.rawValue)
-                                                .font(.system(size: 13, weight: .bold))
-                                                .foregroundColor(selectedFont == rFont ? .metroWhite : .metroLightGray)
-                                                .frame(maxWidth: .infinity)
-                                                .padding(.vertical, 12)
-                                                .background(selectedFont == rFont ? Color.metroGray : Color.clear)
-                                                .border(selectedFont == rFont ? Color.metroWhite : Color.metroGray, width: 1)
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 12) {
+                                        ForEach(ReadingFont.allCases) { rFont in
+                                            Button(action: {
+                                                selectedFont = rFont
+                                                savePreferences()
+                                                resetAutoHideTimer()
+                                            }) {
+                                                Text(rFont.rawValue)
+                                                    .font(.system(size: 13, weight: .bold))
+                                                    .foregroundColor(selectedFont == rFont ? selectedBackdrop.primaryTextColor : selectedBackdrop.secondaryTextColor)
+                                                    .padding(.horizontal, 16)
+                                                    .padding(.vertical, 12)
+                                                    .background(selectedFont == rFont ? selectedBackdrop.borderColor : Color.clear)
+                                                    .border(selectedFont == rFont ? selectedBackdrop.primaryTextColor : selectedBackdrop.borderColor, width: 1)
+                                            }
+                                            .buttonStyle(PlainButtonStyle())
                                         }
-                                        .buttonStyle(PlainButtonStyle())
                                     }
                                 }
                             }
@@ -435,18 +521,18 @@ public struct ReaderView: View {
                                     Text("SIZE")
                                         .font(.system(size: 10, weight: .bold))
                                         .tracking(1)
-                                        .foregroundColor(.metroLightGray)
+                                        .foregroundColor(selectedBackdrop.secondaryTextColor)
                                     Spacer()
                                     Text("\(Int(fontSize))pt")
                                         .font(.system(size: 12, weight: .bold))
-                                        .foregroundColor(.metroWhite)
+                                        .foregroundColor(selectedBackdrop.primaryTextColor)
                                 }
                                 
                                 Slider(value: $fontSize, in: 16...36, step: 2) { _ in
                                     savePreferences()
                                     resetAutoHideTimer()
                                 }
-                                .accentColor(.metroWhite)
+                                .accentColor(selectedBackdrop.primaryTextColor)
                             }
                             
                             // Line Spacing Slider
@@ -455,18 +541,18 @@ public struct ReaderView: View {
                                     Text("LINE HEIGHT")
                                         .font(.system(size: 10, weight: .bold))
                                         .tracking(1)
-                                        .foregroundColor(.metroLightGray)
+                                        .foregroundColor(selectedBackdrop.secondaryTextColor)
                                     Spacer()
                                     Text("\(Int(lineSpacing))pt")
                                         .font(.system(size: 12, weight: .bold))
-                                        .foregroundColor(.metroWhite)
+                                        .foregroundColor(selectedBackdrop.primaryTextColor)
                                 }
                                 
                                 Slider(value: $lineSpacing, in: 4...16, step: 2) { _ in
                                     savePreferences()
                                     resetAutoHideTimer()
                                 }
-                                .accentColor(.metroWhite)
+                                .accentColor(selectedBackdrop.primaryTextColor)
                             }
                             
                             // Margins
@@ -474,7 +560,7 @@ public struct ReaderView: View {
                                 Text("MARGINS")
                                     .font(.system(size: 10, weight: .bold))
                                     .tracking(1)
-                                    .foregroundColor(.metroLightGray)
+                                    .foregroundColor(selectedBackdrop.secondaryTextColor)
                                 
                                 HStack(spacing: 12) {
                                     ForEach([16, 24, 32, 48], id: \.self) { margin in
@@ -485,11 +571,65 @@ public struct ReaderView: View {
                                         }) {
                                             Text("\(margin)px")
                                                 .font(.system(size: 13, weight: .bold))
-                                                .foregroundColor(marginSize == CGFloat(margin) ? .metroWhite : .metroLightGray)
+                                                .foregroundColor(marginSize == CGFloat(margin) ? selectedBackdrop.primaryTextColor : selectedBackdrop.secondaryTextColor)
                                                 .frame(maxWidth: .infinity)
                                                 .padding(.vertical, 10)
-                                                .background(marginSize == CGFloat(margin) ? Color.metroGray : Color.clear)
-                                                .border(marginSize == CGFloat(margin) ? Color.metroWhite : Color.metroGray, width: 1)
+                                                .background(marginSize == CGFloat(margin) ? selectedBackdrop.borderColor : Color.clear)
+                                                .border(marginSize == CGFloat(margin) ? selectedBackdrop.primaryTextColor : selectedBackdrop.borderColor, width: 1)
+                                        }
+                                        .buttonStyle(PlainButtonStyle())
+                                    }
+                                }
+                            }
+                            
+                            // Alignment Options
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("ALIGNMENT")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .tracking(1)
+                                    .foregroundColor(selectedBackdrop.secondaryTextColor)
+                                
+                                HStack(spacing: 12) {
+                                    ForEach(ReadingAlignment.allCases) { align in
+                                        Button(action: {
+                                            selectedAlignment = align
+                                            savePreferences()
+                                            resetAutoHideTimer()
+                                        }) {
+                                            Text(align.rawValue.uppercased())
+                                                .font(.system(size: 11, weight: .bold))
+                                                .foregroundColor(selectedAlignment == align ? selectedBackdrop.primaryTextColor : selectedBackdrop.secondaryTextColor)
+                                                .frame(maxWidth: .infinity)
+                                                .padding(.vertical, 10)
+                                                .background(selectedAlignment == align ? selectedBackdrop.borderColor : Color.clear)
+                                                .border(selectedAlignment == align ? selectedBackdrop.primaryTextColor : selectedBackdrop.borderColor, width: 1)
+                                        }
+                                        .buttonStyle(PlainButtonStyle())
+                                    }
+                                }
+                            }
+                            
+                            // Tracking / Letter Spacing Options
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("LETTER SPACING")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .tracking(1)
+                                    .foregroundColor(selectedBackdrop.secondaryTextColor)
+                                
+                                HStack(spacing: 8) {
+                                    ForEach(ReadingTracking.allCases) { track in
+                                        Button(action: {
+                                            selectedTracking = track
+                                            savePreferences()
+                                            resetAutoHideTimer()
+                                        }) {
+                                            Text(track.rawValue.uppercased())
+                                                .font(.system(size: 11, weight: .bold))
+                                                .foregroundColor(selectedTracking == track ? selectedBackdrop.primaryTextColor : selectedBackdrop.secondaryTextColor)
+                                                .frame(maxWidth: .infinity)
+                                                .padding(.vertical, 10)
+                                                .background(selectedTracking == track ? selectedBackdrop.borderColor : Color.clear)
+                                                .border(selectedTracking == track ? selectedBackdrop.primaryTextColor : selectedBackdrop.borderColor, width: 1)
                                         }
                                         .buttonStyle(PlainButtonStyle())
                                     }
@@ -497,8 +637,8 @@ public struct ReaderView: View {
                             }
                         }
                         .padding(24)
-                        .background(Color.metroBlack)
-                        .border(Color.metroGray, width: 1)
+                        .background(selectedBackdrop.panelBackgroundColor)
+                        .border(selectedBackdrop.borderColor, width: 1)
                         .padding(.horizontal, 16)
                         .padding(.bottom, 40)
                     }
@@ -506,10 +646,10 @@ public struct ReaderView: View {
                 .transition(.move(edge: .bottom))
             }
             
-            // Custom Chapters Overlay Sheet (Table of Contents)
+            // Custom Chapters Overlay Sheet
             if showChapters {
                 ZStack {
-                    Color.black.opacity(0.6)
+                    Color.black.opacity(0.4)
                         .ignoresSafeArea()
                         .onTapGesture {
                             withAnimation(.metroTransition) {
@@ -526,7 +666,7 @@ public struct ReaderView: View {
                                 Text("CHAPTERS")
                                     .font(.system(size: 12, weight: .bold))
                                     .tracking(2)
-                                    .foregroundColor(.metroSilver)
+                                    .foregroundColor(selectedBackdrop.secondaryTextColor)
                                 Spacer()
                                 Button(action: {
                                     withAnimation(.metroTransition) {
@@ -536,14 +676,14 @@ public struct ReaderView: View {
                                 }) {
                                     Image(systemName: "xmark")
                                         .font(.footnote)
-                                        .foregroundColor(.metroWhite)
+                                        .foregroundColor(selectedBackdrop.primaryTextColor)
                                         .padding(8)
-                                        .background(Color.metroGray)
+                                        .background(selectedBackdrop.panelBackgroundColor)
                                 }
                             }
                             .padding(.bottom, 8)
                             
-                            // Scroll list of chapter links styled as minimalist hyperlinks
+                            // Scroll list of chapter links
                             ScrollView {
                                 VStack(alignment: .leading, spacing: 16) {
                                     ForEach(syncService.chapters) { chapter in
@@ -557,12 +697,12 @@ public struct ReaderView: View {
                                             VStack(alignment: .leading, spacing: 4) {
                                                 Text(chapter.title)
                                                     .font(.system(size: 15, weight: .bold))
-                                                    .foregroundColor(syncService.currentSentenceIndex >= chapter.sentenceIndex ? .metroWhite : .metroLightGray)
+                                                    .foregroundColor(syncService.currentSentenceIndex >= chapter.sentenceIndex ? selectedBackdrop.primaryTextColor : selectedBackdrop.secondaryTextColor)
                                                     .multilineTextAlignment(.leading)
                                                 
                                                 Text("Index \(chapter.sentenceIndex + 1)")
                                                     .font(.system(size: 11, weight: .semibold))
-                                                    .foregroundColor(.metroTextMuted)
+                                                    .foregroundColor(selectedBackdrop.secondaryTextColor.opacity(0.8))
                                             }
                                             .padding(.vertical, 8)
                                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -570,21 +710,41 @@ public struct ReaderView: View {
                                         .buttonStyle(PlainButtonStyle())
                                         
                                         Divider()
-                                            .background(Color.metroGray)
+                                            .background(selectedBackdrop.borderColor)
                                     }
                                 }
                             }
                             .frame(maxHeight: 300)
                         }
                         .padding(24)
-                        .background(Color.metroBlack)
-                        .border(Color.metroGray, width: 1)
+                        .background(selectedBackdrop.panelBackgroundColor)
+                        .border(selectedBackdrop.borderColor, width: 1)
                         .padding(.horizontal, 16)
                         .padding(.bottom, 40)
                     }
                 }
                 .transition(.move(edge: .bottom))
             }
+            
+            // Persistent Minimalist Progress Bar at the bottom
+            VStack {
+                Spacer()
+                
+                let progressPct: CGFloat = syncService.sentences.isEmpty ? 0 : CGFloat(syncService.currentSentenceIndex) / CGFloat(syncService.sentences.count)
+                
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Rectangle()
+                            .fill(selectedBackdrop.borderColor.opacity(0.3))
+                            .frame(height: 3)
+                        Rectangle()
+                            .fill(selectedBackdrop.primaryTextColor)
+                            .frame(width: geo.size.width * progressPct, height: 3)
+                    }
+                }
+                .frame(height: 3)
+            }
+            .ignoresSafeArea(.all, edges: .bottom)
         }
         .navigationBarHidden(true)
         .onDisappear {
@@ -603,11 +763,34 @@ public struct ReaderView: View {
         controlsVisible = true
         autoHideTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
             withAnimation(.metroFocus) {
-                // Only auto-hide if playing
                 if syncService.isPlaying {
                     controlsVisible = false
                 }
             }
+        }
+    }
+    
+    private func getRemainingTimeText() -> String {
+        let currentIdx = syncService.currentSentenceIndex
+        let totalSentences = syncService.sentences.count
+        guard totalSentences > 0 else { return "0% READ • 0 MIN LEFT" }
+        
+        var remainingWords = 0
+        for i in currentIdx..<totalSentences {
+            let words = syncService.sentences[i].split { $0.isWhitespace }
+            remainingWords += words.count
+        }
+        
+        let wpm = 200.0 * syncService.speedMultiplier
+        let minutesLeft = Double(remainingWords) / wpm
+        let mins = Int(ceil(minutesLeft))
+        
+        let progressPct = Int(Double(currentIdx) / Double(totalSentences) * 100.0)
+        
+        if mins < 1 {
+            return "\(progressPct)% READ • LESS THAN A MIN LEFT"
+        } else {
+            return "\(progressPct)% READ • \(mins) MIN LEFT"
         }
     }
     
@@ -617,6 +800,9 @@ public struct ReaderView: View {
         UserDefaults.standard.set(lineSpacing, forKey: "aether_line_spacing")
         UserDefaults.standard.set(marginSize, forKey: "aether_margin_size")
         UserDefaults.standard.set(selectedFont.rawValue, forKey: "aether_selected_font")
+        UserDefaults.standard.set(selectedBackdrop.rawValue, forKey: "aether_selected_backdrop")
+        UserDefaults.standard.set(selectedAlignment.rawValue, forKey: "aether_selected_alignment")
+        UserDefaults.standard.set(selectedTracking.rawValue, forKey: "aether_selected_tracking")
     }
     
     private func loadPreferences() {
@@ -644,6 +830,21 @@ public struct ReaderView: View {
         } else if let oldRawFont = UserDefaults.standard.string(forKey: "etp_selected_font"),
                   let oldFont = ReadingFont(rawValue: oldRawFont) {
             selectedFont = oldFont
+        }
+        
+        if let rawBackdrop = UserDefaults.standard.string(forKey: "aether_selected_backdrop"),
+           let backdrop = ReaderBackdrop(rawValue: rawBackdrop) {
+            selectedBackdrop = backdrop
+        }
+        
+        if let rawAlignment = UserDefaults.standard.string(forKey: "aether_selected_alignment"),
+           let alignment = ReadingAlignment(rawValue: rawAlignment) {
+            selectedAlignment = alignment
+        }
+        
+        if let rawTracking = UserDefaults.standard.string(forKey: "aether_selected_tracking"),
+           let tracking = ReadingTracking(rawValue: rawTracking) {
+            selectedTracking = tracking
         }
     }
     
@@ -688,25 +889,36 @@ struct SentenceItemView: View {
     var font: ReadingFont
     var fontSize: CGFloat
     var lineSpacing: CGFloat
+    var backdrop: ReaderBackdrop
+    var alignment: ReadingAlignment
+    var tracking: ReadingTracking
+    
+    private func frameAlignment(for alignment: ReadingAlignment) -> Alignment {
+        switch alignment {
+        case .leading: return .leading
+        case .center: return .center
+        case .trailing: return .trailing
+        }
+    }
     
     var body: some View {
         Group {
             if isActive && isPlaying {
-                // High contrast highlight of currently spoken word
                 Text(highlightActiveSentence(text: text, range: currentWordRange))
                     .font(font.font(size: fontSize))
                     .lineSpacing(lineSpacing)
-                    .foregroundColor(.metroWhite)
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .tracking(tracking.value)
+                    .foregroundColor(backdrop.primaryTextColor)
+                    .multilineTextAlignment(alignment.multilineAlignment)
+                    .frame(maxWidth: .infinity, alignment: frameAlignment(for: alignment))
             } else {
-                // Ambient dimming of surrounding content
                 Text(text)
                     .font(font.font(size: fontSize))
                     .lineSpacing(lineSpacing)
-                    .foregroundColor(isPlaying ? .metroTextMuted : .metroWhite)
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .tracking(tracking.value)
+                    .foregroundColor(isPlaying ? backdrop.secondaryTextColor : backdrop.primaryTextColor)
+                    .multilineTextAlignment(alignment.multilineAlignment)
+                    .frame(maxWidth: .infinity, alignment: frameAlignment(for: alignment))
                     .opacity(isPlaying ? 0.45 : 1.0)
             }
         }
@@ -716,7 +928,9 @@ struct SentenceItemView: View {
     
     private func highlightActiveSentence(text: String, range: NSRange?) -> AttributedString {
         var attrStr = AttributedString(text)
-        attrStr.foregroundColor = .metroSilver
+        
+        // Use secondary text color as base for active sentence under light/dark
+        attrStr.foregroundColor = backdrop.secondaryTextColor
         
         guard let range = range,
               let wordRange = text.rangeFromNSRange(range),
@@ -724,7 +938,8 @@ struct SentenceItemView: View {
             return attrStr
         }
         
-        attrStr[attrRange].foregroundColor = .metroWordHighlight
+        // Highlight active word in active color
+        attrStr[attrRange].foregroundColor = backdrop.activeWordHighlightColor
         attrStr[attrRange].font = font.font(size: fontSize).bold()
         
         return attrStr
